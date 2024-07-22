@@ -46,12 +46,11 @@ public class Piece : MonoBehaviour
         float x = position;
         float y = position;
 
-        if (position == 26.0f)
+        if (position == 25)
         {
             x = 0.0f;
             y = 1.0f;
-            int quant = controller.GetComponent<Game>().posMatrix[26] + 1;
-            Debug.Log("2666");
+            int quant = controller.GetComponent<Game>().posMatrix[25] + 1;
             if (quant > 1)
             {
                 this.GetComponentInChildren<TextMeshProUGUI>().color = new Color(0, 0, 0, 255);
@@ -59,15 +58,14 @@ public class Piece : MonoBehaviour
             }
             else this.GetComponentInChildren<TextMeshProUGUI>().text = "";
         }
-        else if (position == 27.0f)
+        else if (position == 0)
         {
             x = 0.0f;
             y = -1.0f;
-            int quant = 1 - controller.GetComponent<Game>().posMatrix[27];
+            int quant = 1 - controller.GetComponent<Game>().posMatrix[0];
             if (quant > 1)
             {
-                Debug.Log("changed");
-                controller.GetComponent<Game>().GetPosition(27, quant - 1).GetComponentInChildren<TextMeshProUGUI>().color = new Color(255, 255, 255, 0);
+                controller.GetComponent<Game>().GetPosition(0, quant - 1).GetComponentInChildren<TextMeshProUGUI>().color = new Color(255, 255, 255, 0);
                 this.GetComponentInChildren<TextMeshProUGUI>().color = new Color(255, 255, 255, 255);
                 this.GetComponentInChildren<TextMeshProUGUI>().text = (quant).ToString();
             }

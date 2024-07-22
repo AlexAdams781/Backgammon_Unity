@@ -9,7 +9,7 @@ public class BarPanel : MonoBehaviour
 
     public void SetCoords()
     {
-        if (position == 26) this.transform.position = new Vector3(0.0f, 1.0f, -2.0f);
+        if (position == 25) this.transform.position = new Vector3(0.0f, 1.0f, -2.0f);
         else this.transform.position = new Vector3(0.0f, -1.0f, -2.0f);
     }
     public int GetPosition()
@@ -24,10 +24,8 @@ public class BarPanel : MonoBehaviour
 
     private void OnMouseUp()
     {
+        Debug.Log("Bar");
         controller = GameObject.FindGameObjectWithTag("GameController");
-        int depth = controller.GetComponent<Game>().posMatrix[position];
-        if (depth == 0) return;
-        else if (depth > 0) controller.GetComponent<Game>().MoveChecker(position, 24, "white_checker");
-        else controller.GetComponent<Game>().MoveChecker(position, 1, "black_checker");
+        controller.GetComponent<Game>().TakeTurn(position);
     }
 }

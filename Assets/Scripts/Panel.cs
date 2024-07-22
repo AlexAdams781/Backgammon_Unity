@@ -33,10 +33,8 @@ public class Panel : MonoBehaviour
 
     private void OnMouseUp()
     {
+        
         controller = GameObject.FindGameObjectWithTag("GameController");
-        int depth = controller.GetComponent<Game>().posMatrix[position];
-        if (depth == 0) return;
-        else if (depth > 0) controller.GetComponent<Game>().MoveChecker(position, position - 1, "white_checker");
-        else controller.GetComponent<Game>().MoveChecker(position, position + 1, "black_checker");
+        controller.GetComponent<Game>().TakeTurn(position);
     }
 }

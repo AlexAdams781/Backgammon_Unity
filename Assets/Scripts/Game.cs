@@ -12,6 +12,7 @@ public class Game : MonoBehaviour
     public GameObject RollDice;
     public GameObject UndoDice;
     public GameObject Done;
+    public GameObject GameOverScreen;
 
     // Positions and team for each checker
     public GameObject[,] positions = new GameObject[28, 15];
@@ -22,32 +23,36 @@ public class Game : MonoBehaviour
 
     public int[] posMatrix = new int[28];
 
-    public HashSet<int> whitePos = new HashSet<int>();
-    public HashSet<int> blackPos = new HashSet<int>();
+    public SortedSet<int> whitePos = new SortedSet<int>();
+    public SortedSet<int> blackPos = new SortedSet<int>();
 
     public Stack<int> dice = new Stack<int>();
     public Stack<(int, int, bool)> undoDice = new Stack<(int, int, bool)>();
 
     public int maxMovesPossible = 0;
 
+    public bool whiteBearoff = false;
+    public bool blackBearoff = false;
+    public string winner = "";
+
     // Start is called before the first frame update
     void Start()
     {
         playerWhite = new GameObject[]
         {
-            Create("white_checker", 24, 1, true), Create("white_checker", 24, 2, true), Create("white_checker", 13, 1, true),
-            Create("white_checker", 13, 2, true), Create("white_checker", 13, 3, true), Create("white_checker", 13, 4, true),
-            Create("white_checker", 13, 5, true), Create("white_checker", 8, 1, true), Create("white_checker", 8, 2, true),
-            Create("white_checker", 8, 3, true), Create("white_checker", 6, 1, true), Create("white_checker", 6, 2, true),
-            Create("white_checker", 6, 3, true), Create("white_checker", 6, 4, true), Create("white_checker", 6, 5, true),
+            Create("white", 24, 1, true), Create("white", 24, 2, true), Create("white", 13, 1, true),
+            Create("white", 13, 2, true), Create("white", 13, 3, true), Create("white", 13, 4, true),
+            Create("white", 13, 5, true), Create("white", 8, 1, true), Create("white", 8, 2, true),
+            Create("white", 8, 3, true), Create("white", 6, 1, true), Create("white", 6, 2, true),
+            Create("white", 6, 3, true), Create("white", 6, 4, true), Create("white", 6, 5, true),
         };
         playerBlack = new GameObject[]
         {
-            Create("black_checker", 24, 1, false), Create("black_checker", 24, 2, false), Create("black_checker", 13, 1, false),
-            Create("black_checker", 13, 2, false), Create("black_checker", 13, 3, false), Create("black_checker", 13, 4, false),
-            Create("black_checker", 13, 5, false), Create("black_checker", 8, 1, false), Create("black_checker", 8, 2, false),
-            Create("black_checker", 8, 3, false), Create("black_checker", 6, 1, false), Create("black_checker", 6, 2, false),
-            Create("black_checker", 6, 3, false), Create("black_checker", 6, 4, false), Create("black_checker", 6, 5, false),
+            Create("black", 24, 1, false), Create("black", 24, 2, false), Create("black", 13, 1, false),
+            Create("black", 13, 2, false), Create("black", 13, 3, false), Create("black", 13, 4, false),
+            Create("black", 13, 5, false), Create("black", 8, 1, false), Create("black", 8, 2, false),
+            Create("black", 8, 3, false), Create("black", 6, 1, false), Create("black", 6, 2, false),
+            Create("black", 6, 3, false), Create("black", 6, 4, false), Create("black", 6, 5, false),
         };
 
         for (int i = 0; i < playerWhite.Length; i++)
@@ -127,32 +132,41 @@ public class Game : MonoBehaviour
         else return posMatrix[25 - position];
     }
 
-    public void AddChecker(int position, int[] posMatrix_, HashSet<int> posSet, string piece)
+    public void AddChecker(int position, int[] posMatrix_, SortedSet<int> posSet, string piece)
     {
         if (piece == "white")
         {
-            posSet.Add(position);
+            if (position != 26) posSet.Add(position);
             posMatrix_[position] += 1;
+  
         }
         else
         {
-            posSet.Add(position);
+            if (position != 27) posSet.Add(position);
             posMatrix_[position] -= 1;
         }
+        checkBearoff();
     }
 
-    public void RemoveChecker(int position, int[] posMatrix_, HashSet<int> posSet, string piece)
+    public void RemoveChecker(int position, int[] posMatrix_, SortedSet<int> posSet, string piece)
     {
         if (piece == "white")
         {
-            if (posMatrix_[position] <= 1) posSet.Remove(position);
+            if (posMatrix_[position] <= 1)
+            {
+                posSet.Remove(position);
+            }
             posMatrix_[position] -= 1;
         }
         else
         {
-            if (posMatrix_[position] >= -1)  posSet.Remove(position);
+            if (posMatrix_[position] >= -1)
+            {
+                posSet.Remove(position);
+            }
             posMatrix_[position] += 1;
         }
+        checkBearoff();
     }
 
     public bool PositionOnBoard(int x, int y)
@@ -160,35 +174,62 @@ public class Game : MonoBehaviour
         return (x < 0 || y < 0 || x >= positions.GetLength(0) || y >= positions.GetLength(1));
     }
 
+    public void ReactivatePiece(int pos, int newDep)
+    {
+        if ((pos == 0 || pos == 25) && newDep > 0) GetPosition(pos, newDep).GetComponent<Piece>().Activate();
+        else if (newDep >= 5) GetPosition(pos, newDep).GetComponent<Piece>().Activate();
+    }
+
     public void TakeTurn(int oldPos)
     {
+        //Debug.Log("Take Turn");
+        //Debug.Log(oldPos);
         int depth = posMatrix[oldPos];
         int newPos;
-        int newDep;
         if (depth == 0 || dice.Count == 0) return;
         else if (depth > 0 && currentPlayer == "white")
         {
             newPos = oldPos - dice.Peek();
-            newDep = posMatrix[newPos];
-            if (newPos > 0 && newDep > -2 && (oldPos == 25 || posMatrix[25] == 0)) undoDice.Push((oldPos, oldPos - dice.Pop(), MoveChecker(oldPos, newPos, "white")));
+            if (newPos > 0 && posMatrix[newPos] > -2 && (oldPos == 25 || posMatrix[25] == 0))
+            {
+                undoDice.Push((oldPos, oldPos - dice.Pop(), MoveChecker(oldPos, newPos, "white")));
+            }
+            else if ((newPos == 0 && whiteBearoff) || (newPos < 0 && whitePos.Max == oldPos))
+            {
+                dice.Pop();
+                undoDice.Push((oldPos, 26, MoveChecker(oldPos, 26, "white")));
+            }
             else return;
         }
-        else if (currentPlayer == "black")
+        else if (depth < 0 && currentPlayer == "black")
         {
+            //Debug.Log("here");
             newPos = oldPos + dice.Peek();
-            newDep = posMatrix[newPos];
-            if (newPos <= 24 && newDep < 2 && (oldPos == 0 || posMatrix[0] == 0)) undoDice.Push((oldPos, oldPos + dice.Pop(), MoveChecker(oldPos, newPos, "black")));
+            //Debug.Log(newPos);
+            if (newPos <= 24 && posMatrix[newPos] < 2 && (oldPos == 0 || posMatrix[0] == 0))
+            {
+                undoDice.Push((oldPos, oldPos + dice.Pop(), MoveChecker(oldPos, newPos, "black")));
+            }
+            else if ((newPos == 25 && blackBearoff) || (newPos > 25 && blackPos.Min == oldPos))
+            {
+                dice.Pop();
+                undoDice.Push((oldPos, 27, MoveChecker(oldPos, 27, "black")));
+            }
             else return;
         }
         UndoDice.SetActive(true);
-        Debug.Log("maxmovesss");
-        Debug.Log(maxMovesPossible);
-        Debug.Log(undoDice.Count);
         if (undoDice.Count == maxMovesPossible) Done.SetActive(true);
+        if (currentPlayer == "white") PrintSet(whitePos);
+        else PrintSet(blackPos);
+        //Debug.Log("Undo Count " + undoDice.Count() + " maxMoves " + maxMovesPossible);
+        checkGameOver();
     }
 
     public bool MoveChecker(int oldPos, int newPos, string piece)
     {
+        //Debug.Log("move checker");
+        //Debug.Log(oldPos);
+        //Debug.Log(newPos);
         int oldDep = posMatrix[oldPos];
         int newDep = posMatrix[newPos];
 
@@ -209,14 +250,17 @@ public class Game : MonoBehaviour
         if (obj == null) Debug.Log("Dereferencing null!!!");
         Piece piScript = obj.GetComponent<Piece>();
 
-        if (piece == "white") piScript.SetPosition(newPos);
-        else piScript.SetPosition(newPos);
+        piScript.SetPosition(newPos);
         piScript.SetDepth(newDep + 1);
         piScript.name = piece;
         piScript.Activate();
+        Debug.Log("move checker " + oldPos + " " + newPos + " " + oldDep);
+        ReactivatePiece(oldPos, oldDep - 1);
 
         SetPositionEmpty(oldPos, oldDep, piece);
         SetPosition(obj, piece);
+        PrintSet(whitePos);
+        PrintSet(blackPos);
         return false;
     }
 
@@ -254,8 +298,10 @@ public class Game : MonoBehaviour
             SetPosition(attacker, "black");
             SetPosition(victim, "white");
 
-            if (oldPos == 0) GetPosition(0, oldDep - 1).GetComponentInChildren<TextMeshProUGUI>().color = new Color(255, 255, 255, 255);
+            if (oldPos == 0 && oldDep > 1) GetPosition(0, oldDep).GetComponentInChildren<TextMeshProUGUI>().color = new Color(255, 255, 255, 255);
         }
+        Debug.Log("capture checker");
+        ReactivatePiece(oldPos, oldDep - 1);
     }
 
     public int test()
@@ -274,10 +320,33 @@ public class Game : MonoBehaviour
         Debug.Log("}");
     }
 
+    public void PrintStack(Stack<int> S)
+    {
+        Stack<int> S_ = new Stack<int>(S.Reverse());
+        Debug.Log("Dice printing . . .");
+        Debug.Log("{");
+        while (S_.Count() > 0)
+        {
+            Debug.Log(S_.Peek());
+            S_.Pop();
+        }
+        Debug.Log("}");
+    }
+
+    public void PrintSet(SortedSet<int> S)
+    {
+        int[] S_ = S.ToArray();
+        Debug.Log("Set printing . . .");
+        Debug.Log("{");
+        foreach (int i in S_)
+        {
+            Debug.Log(i);
+        }
+        Debug.Log("}");
+    }
+
     public void ReverseDice(Stack<int> S)
     {
-        Debug.Log("size of");
-        Debug.Log(S.Count());
         int tmp1 = S.Pop();
         int tmp2 = S.Pop();
         S.Push(tmp1);
@@ -286,59 +355,61 @@ public class Game : MonoBehaviour
 
     public (List<List<(int, int)>>, int) GetMoves(Stack<int> diceClone)
     {
-        Debug.Log("get Moves started");
         List<List<(int, int)>> movesList = new List<List<(int, int)>>();
         int maxCheckersMoved = 0;
 
         int[] posMatrix_ = (int[]) posMatrix.Clone();
-        HashSet<int> S;
-        if (currentPlayer == "white") S = new HashSet<int>(whitePos);
-        else
-        {
-            S = new HashSet<int>(blackPos);
-            for (int i = 0; i < posMatrix_.Length; i++) posMatrix_[i] *= -1;
-        }
+        SortedSet<int> S;
+        if (currentPlayer == "white") S = new SortedSet<int>(whitePos);
+        else S = new SortedSet<int>(blackPos);
+
+        bool tmpWhiteBearoff = whiteBearoff;
+        bool tmpBlackBearoff = blackBearoff;
 
         void moveDFS(Stack< int> dice, List<(int, int)> moves)
         {
-            Debug.Log("move DFS started");
-         
-            if (diceClone.Count() == 0)
+
+            if (dice.Count() == 0)
             {
-                Debug.Log("empty dice");
                 maxCheckersMoved = Mathf.Max(maxCheckersMoved, moves.Count);
                 movesList.Add(moves);
-                PrintList(moves);
+                //PrintList(moves);
                 return;
             }
-            else Debug.Log(dice.Peek());
 
-            int diceVal = diceClone.Pop();
+            int diceVal = dice.Pop();
             bool captured = false;
             int newPos;
-            HashSet<int> S_pos = S;
+            SortedSet<int> S_pos = S;
             if (currentPlayer == "white" && posMatrix_[25] > 0)
             {
-                S_pos = new HashSet<int>();
+                S_pos = new SortedSet<int>();
                 S_pos.Add(25);
             }
             else if (currentPlayer == "black" && posMatrix_[0] < 0)
             {
-                S_pos = new HashSet<int>();
+                //Debug.Log("change");
+                S_pos = new SortedSet<int>();
                 S_pos.Add(0);
             }
+            //Debug.Log("bar length" + posMatrix_[0] + "hi" + posMatrix_[25]);
 
-            foreach (int pos in new HashSet<int>(S_pos))
+            foreach (int pos in new SortedSet<int>(S_pos))
             {
-                Debug.Log(pos);
                 if (currentPlayer == "white") newPos = pos - diceVal;
                 else newPos = pos + diceVal;
 
-                if (newPos < 0 || newPos >= 26) continue;
+                if (newPos < 0 || newPos >= 26)
+                {
+                    if (currentPlayer == "white" && (!whiteBearoff || whitePos.Max != pos)) continue;
+                    else if (currentPlayer == "black" && (!blackBearoff || blackPos.Min != pos)) continue;
+                }
+                else if (currentPlayer == "white" && newPos == 0 && !whiteBearoff) continue;
+                else if (currentPlayer == "black" && newPos == 26 && !blackBearoff) continue;
 
-                if (posMatrix_[newPos] < -1) continue;
+                if ((posMatrix_[newPos] < -1 && currentPlayer == "white") || (posMatrix_[newPos] > 1 && currentPlayer == "black")) continue;
                 RemoveChecker(pos, posMatrix_, S, currentPlayer);
-                if (posMatrix_[newPos] == -1)
+                if (Mathf.Abs(posMatrix_[newPos]) == -1)
                 {
                     AddChecker(newPos, posMatrix_, S, currentPlayer);
                     captured = true;
@@ -353,68 +424,76 @@ public class Game : MonoBehaviour
                 RemoveChecker(newPos, posMatrix_, S,currentPlayer);
                 if (captured) captured = !captured;
             }
-            diceClone.Push(diceVal);
+            dice.Push(diceVal);
         }
 
         moveDFS(diceClone, new List<(int, int)>());
-        Debug.Log("max Checkers Moved");
-        Debug.Log(maxCheckersMoved);
+        whiteBearoff = tmpWhiteBearoff;
+        blackBearoff = tmpBlackBearoff;
         return (movesList, maxCheckersMoved);
     }
 
-    public (int, int) GetMaxMoves(Stack<int> diceClone)
+    public void GetMaxMoves(Stack<int> diceClone)
     {
-        Debug.Log("get Moves started");
         int maxCheckersMoved = 0;
         int maxIntervalMove = 0;
 
         int[] posMatrix_ = (int[])posMatrix.Clone();
-        HashSet<int> S;
-        if (currentPlayer == "white") S = new HashSet<int>(whitePos);
-        else
-        {
-            S = new HashSet<int>(blackPos);
-            for (int i = 0; i < posMatrix_.Length; i++) posMatrix_[i] *= -1;
-        }
+        SortedSet<int> S;
+        if (currentPlayer == "white") S = new SortedSet<int>(whitePos);
+        else S = new SortedSet<int>(blackPos);
 
         bool moveDFS(Stack<int> dice, int moves)
         {
-            Debug.Log("move DFS started");
-
-            if (diceClone.Count() == 0)
+            //Debug.Log("moves" + moves);
+;           if (dice.Count() == 0)
             {
+                //Debug.Log("checkers moved: " + moves);
                 maxCheckersMoved = Mathf.Max(maxCheckersMoved, moves);
                 return true;
             }
 
-            int diceVal = diceClone.Pop();
+            int diceVal = dice.Pop();
             bool captured = false;
             int newPos;
 
-            HashSet<int> S_pos = S;
-            if (currentPlayer == "white" && posMatrix_[25] > 0)
+            SortedSet<int> S_pos = S;
+            if (currentPlayer == "white" && S.Contains(25))
             {
-                S_pos = new HashSet<int>();
+                S_pos = new SortedSet<int>();
                 S_pos.Add(25);
             }
-            else if (currentPlayer == "black" && posMatrix_[0] < 0)
+            else if (currentPlayer == "black" && S.Contains(0))
             {
-                S_pos = new HashSet<int>();
+                S_pos = new SortedSet<int>();
                 S_pos.Add(0);
             }
 
-            foreach (int pos in new HashSet<int>(S_pos))
+            foreach (int pos in new SortedSet<int>(S_pos))
             {
-                Debug.Log(pos);
+                Debug.Log("diceval and pos" + diceVal + " " + pos);
                 if (currentPlayer == "white") newPos = pos - diceVal;
                 else newPos = pos + diceVal;
+                if (newPos < 0 || newPos >= 26)
+                {
+                    if (currentPlayer == "white")
+                    {
+                        if (!whiteBearoff || whitePos.Max != pos) continue;
+                        else newPos = 0;
+                    }
+                    else
+                    {
+                        if (!blackBearoff || blackPos.Min != pos) continue;
+                        else newPos = 25;
+                    }
+                }
+                else if (currentPlayer == "white" && newPos == 0 && !whiteBearoff) continue;
+                else if (currentPlayer == "black" && newPos == 25 && !blackBearoff) continue;
 
-                if (newPos < 0 || newPos >= 26) continue;
-
-                if (posMatrix_[newPos] < -1) continue;
+                else if ((posMatrix_[newPos] < -1 && currentPlayer == "white") || (posMatrix_[newPos] > 1 && currentPlayer == "black")) continue;
                 maxIntervalMove = Mathf.Max(maxIntervalMove, diceVal);
                 RemoveChecker(pos, posMatrix_, S, currentPlayer);
-                if (posMatrix_[newPos] == -1)
+                if (Mathf.Abs(posMatrix_[newPos]) == -1)
                 {
                     AddChecker(newPos, posMatrix_, S, currentPlayer);
                     captured = true;
@@ -428,18 +507,51 @@ public class Game : MonoBehaviour
                 if (captured) captured = !captured;
             }
 
-            diceClone.Push(diceVal);
+            dice.Push(diceVal);
+            maxCheckersMoved = Mathf.Max(maxCheckersMoved, moves);
             return false;
         }
         // Stack<int> diceClone = new Stack<int>(dice.Reverse());
         Stack<int> diceClone_ = new Stack<int>(diceClone.Reverse());
+        //PrintStack(diceClone_);
         moveDFS(diceClone, 0);
         ReverseDice(diceClone_);
+        //Debug.Log("ZZZZZZZ");
+        //PrintStack(diceClone_);
         if (dice.Count() > maxCheckersMoved) moveDFS(diceClone_, 0);
-
-        Debug.Log("max Checkers Moved");
-        Debug.Log(maxCheckersMoved);
         maxMovesPossible = maxCheckersMoved;
-        return (maxCheckersMoved, maxIntervalMove);
+
+        //Debug.Log("max moves possible: " + maxCheckersMoved);
+    }
+
+    public void checkBearoff()
+    {
+        int count = 0;
+        if (currentPlayer == "white")
+        {
+            if (whitePos.Max <= 6) whiteBearoff = true;
+            else whiteBearoff = false;
+        }
+        else
+        {
+            if (blackPos.Min > 18) blackBearoff = true;
+            else blackBearoff = false;
+        }
+    }
+
+    private string Capitalize(string s)
+    {
+        return s[0].ToString().ToUpper() + s.Substring(1);
+    }
+
+    public void checkGameOver()
+    {
+        if ((posMatrix[26] == 15) || (posMatrix[27] == -15))
+        {
+            Debug.Log("Game over");
+            winner = Capitalize(currentPlayer);
+            GameOverScreen.SetActive(true);
+            GameOverScreen.GetComponentInChildren<TextMeshProUGUI>().text = "Game Over!\n" + winner + "Wins!";
+        }
     }
 }

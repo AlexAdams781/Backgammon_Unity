@@ -341,3 +341,5 @@ MonoBehaviour:
   textUI: {fileID: 0}
   black_checker: {fileID: 21300000, guid: 6da8dd84f356d2a43becfd189278de7e, type: 3}
   white_checker: {fileID: 21300000, guid: b256850ed1aa4fd4090e534b99134e10, type: 3}
+  black_checker_home: {fileID: 21300000, guid: 7f8e2017ab9540e4eb3a16ccaf415e91, type: 3}
+  white_checker_home: {fileID: 21300000, guid: 69aa5e34685e2654e9530907de47f554, type: 3}

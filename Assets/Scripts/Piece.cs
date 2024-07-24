@@ -19,7 +19,7 @@ public class Piece : MonoBehaviour
     private string player;
 
     // References for all the sprites that the chesspiece can be
-    public Sprite black_checker, white_checker;
+    public Sprite black_checker, white_checker, black_checker_home, white_checker_home;
 
     public void Start()
     {
@@ -35,8 +35,8 @@ public class Piece : MonoBehaviour
 
         switch (this.name)
         {
-            case "black_checker": this.GetComponent<SpriteRenderer>().sprite = black_checker; player = "black";  break;
-            case "white_checker": this.GetComponent<SpriteRenderer>().sprite = white_checker; player = "white";  break;
+            case "black": this.GetComponent<SpriteRenderer>().sprite = black_checker; player = "black";  break;
+            case "white": this.GetComponent<SpriteRenderer>().sprite = white_checker; player = "white";  break;
         }
     }
 
@@ -45,39 +45,83 @@ public class Piece : MonoBehaviour
         controller = GameObject.FindGameObjectWithTag("GameController");
         float x = position;
         float y = position;
+        GameObject obj;
+        Debug.Log("psotiion depth");
+        Debug.Log(position);
+        Debug.Log(depth);
 
-        if (position == 25)
+        if (position == 26)
         {
+            this.GetComponent<SpriteRenderer>().sprite = white_checker_home;
+            x = 5.215f;
+            y = -4.5f + (float)depth * 0.2f;
+        }
+        else if (position == 27)
+        {
+            this.GetComponent<SpriteRenderer>().sprite = black_checker_home;
+            x = 5.215f;
+            y = 4.5f - (float)depth * 0.2f;
+        }
+        else if (position == 25)
+        {
+            this.GetComponent<SpriteRenderer>().sprite = white_checker;
             x = 0.0f;
             y = 1.0f;
-            int quant = controller.GetComponent<Game>().posMatrix[25] + 1;
-            if (quant > 1)
+            if (depth > 1)
             {
-                this.GetComponentInChildren<TextMeshProUGUI>().color = new Color(0, 0, 0, 255);
-                this.GetComponentInChildren<TextMeshProUGUI>().text = quant.ToString();
+                obj = controller.GetComponent<Game>().GetPosition(position, 1);
+                obj.GetComponentInChildren<TextMeshProUGUI>().text = depth.ToString();
             }
-            else this.GetComponentInChildren<TextMeshProUGUI>().text = "";
+            else if (depth == 1 && controller.GetComponent<Game>().GetPosition(position, 1))
+            {
+                obj = controller.GetComponent<Game>().GetPosition(position, 1);
+                obj.GetComponentInChildren<TextMeshProUGUI>().text = "";
+            }
         }
         else if (position == 0)
         {
+            this.GetComponent<SpriteRenderer>().sprite = black_checker;
             x = 0.0f;
             y = -1.0f;
-            int quant = 1 - controller.GetComponent<Game>().posMatrix[0];
-            if (quant > 1)
+            if (depth > 1)
             {
-                controller.GetComponent<Game>().GetPosition(0, quant - 1).GetComponentInChildren<TextMeshProUGUI>().color = new Color(255, 255, 255, 0);
-                this.GetComponentInChildren<TextMeshProUGUI>().color = new Color(255, 255, 255, 255);
-                this.GetComponentInChildren<TextMeshProUGUI>().text = (quant).ToString();
+                obj = controller.GetComponent<Game>().GetPosition(position, 1);
+                obj.GetComponentInChildren<TextMeshProUGUI>().text = depth.ToString();
+                obj.GetComponentInChildren<TextMeshProUGUI>().color = new Color(0, 0, 0, 255);
             }
-            else this.GetComponentInChildren<TextMeshProUGUI>().text = "";
+            else if (depth == 1 && controller.GetComponent<Game>().GetPosition(position, 1))
+            {
+                obj = controller.GetComponent<Game>().GetPosition(position, 1);
+                obj.GetComponentInChildren<TextMeshProUGUI>().text = "";
+                obj.GetComponentInChildren<TextMeshProUGUI>().color = new Color(0, 0, 0, 255);
+            }
         }
         else
         {
+            if (this.GetComponent<SpriteRenderer>().sprite == black_checker_home) this.GetComponent<SpriteRenderer>().sprite = black_checker;
+            else if (this.GetComponent<SpriteRenderer>().sprite == white_checker_home) this.GetComponent<SpriteRenderer>().sprite = white_checker;
             this.GetComponentInChildren<TextMeshProUGUI>().text = "";
             if ((x <= 18.0f && x >= 13.0f) || (x <= 6.0f && x >= 1.0f)) x -= 1.0f;
             x = ((Mathf.Abs(x - 12.0f) - 6.0f) * 0.694f);
-            if (y > 12.0f) y = 4.835f - ((float)depth) * 0.65f;
-            else y = -4.835f + ((float)depth) * 0.65f;
+            if (y > 12.0f) y = 4.835f - ((float)Mathf.Min(depth, 5)) * 0.65f;
+            else y = -4.835f + ((float)Mathf.Min(depth, 5)) * 0.65f;
+
+            if (depth > 5)
+            {
+                Debug.Log("here a");
+                obj = controller.GetComponent<Game>().GetPosition(position, 5);
+                obj.GetComponentInChildren<TextMeshProUGUI>().text = depth.ToString();
+                if (player == "black") obj.GetComponentInChildren<TextMeshProUGUI>().color = new Color(255, 255, 255, 255);
+            }
+            
+            else if (depth == 5 && controller.GetComponent<Game>().GetPosition(position, 5))
+            {
+                Debug.Log("here b");
+                obj = controller.GetComponent<Game>().GetPosition(position, 5);
+                obj.GetComponentInChildren<TextMeshProUGUI>().text = "";
+                if (player == "black") obj.GetComponentInChildren<TextMeshProUGUI>().color = new Color(255, 255, 255, 255);
+            }
+            
         }
 
         this.transform.position = new Vector3(x, y, -1.0f);
